@@ -1,0 +1,66 @@
+from personal_bot.db.database import Database
+
+
+def initialize_database_schema(database: Database) -> None:
+    """Create the first-stage schema when it does not exist yet."""
+    database.execute_script(
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY,
+            telegram_id INTEGER NOT NULL UNIQUE,
+            username TEXT,
+            first_name TEXT NOT NULL,
+            last_name TEXT,
+            phone_number TEXT NOT NULL,
+            role TEXT NOT NULL CHECK (role IN ('super_admin', 'admin', 'user')),
+            status TEXT NOT NULL CHECK (status IN ('active', 'blocked')),
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS access_requests (
+            id INTEGER PRIMARY KEY,
+            telegram_id INTEGER NOT NULL,
+            username TEXT,
+            first_name TEXT NOT NULL,
+            last_name TEXT,
+            phone_number TEXT NOT NULL,
+            status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')),
+            reviewed_by_user_id INTEGER REFERENCES users(id),
+            reviewed_at TEXT,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE UNIQUE INDEX IF NOT EXISTS unique_pending_access_request
+            ON access_requests(telegram_id)
+            WHERE status = 'pending';
+
+        CREATE TABLE IF NOT EXISTS user_settings (
+            user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            timezone TEXT NOT NULL,
+            currency TEXT NOT NULL,
+            date_format TEXT NOT NULL,
+            language TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS categories (
+            id INTEGER PRIMARY KEY,
+            owner_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            parent_id INTEGER REFERENCES categories(id) ON DELETE RESTRICT,
+            name TEXT NOT NULL,
+            icon TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
+        CREATE UNIQUE INDEX IF NOT EXISTS unique_root_category_name
+            ON categories(owner_user_id, name)
+            WHERE parent_id IS NULL;
+
+        CREATE UNIQUE INDEX IF NOT EXISTS unique_child_category_name
+            ON categories(owner_user_id, parent_id, name)
+            WHERE parent_id IS NOT NULL;
+        """
+    )
+
