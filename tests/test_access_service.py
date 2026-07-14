@@ -34,7 +34,7 @@ class AccessServiceTests(unittest.TestCase):
         self.temporary_directory.cleanup()
 
     def test_register_contact_creates_first_super_admin_and_settings(self) -> None:
-        registration_result = self.access_service.register_contact(
+        registration_outcome = self.access_service.register_contact(
             telegram_id=123456,
             username="username",
             first_name="Ім'я",
@@ -47,7 +47,7 @@ class AccessServiceTests(unittest.TestCase):
         ).fetchone()
 
         self.assertIs(
-            registration_result,
+            registration_outcome.result,
             ContactRegistrationResult.FIRST_SUPER_ADMIN_CREATED,
         )
         self.assertIsNotNone(user)
@@ -67,7 +67,7 @@ class AccessServiceTests(unittest.TestCase):
             phone_number="+380000000000",
         )
 
-        registration_result = self.access_service.register_contact(
+        registration_outcome = self.access_service.register_contact(
             telegram_id=654321,
             username="next_user",
             first_name="Наступний",
@@ -79,13 +79,18 @@ class AccessServiceTests(unittest.TestCase):
         ).fetchone()
 
         self.assertIs(
-            registration_result,
+            registration_outcome.result,
             ContactRegistrationResult.ACCESS_REQUEST_CREATED,
         )
         self.assertEqual(access_request_row["telegram_id"], 654321)
         self.assertEqual(
             access_request_row["status"],
             AccessRequestStatus.PENDING.value,
+        )
+        self.assertEqual(len(registration_outcome.super_admins), 1)
+        self.assertEqual(
+            registration_outcome.super_admins[0].telegram_id,
+            123456,
         )
 
     def test_register_contact_does_not_create_duplicate_pending_access_request(self) -> None:
@@ -104,7 +109,7 @@ class AccessServiceTests(unittest.TestCase):
             phone_number="+380000000001",
         )
 
-        registration_result = self.access_service.register_contact(
+        registration_outcome = self.access_service.register_contact(
             telegram_id=654321,
             username="next_user",
             first_name="Наступний",
@@ -116,7 +121,7 @@ class AccessServiceTests(unittest.TestCase):
         ).fetchone()
 
         self.assertIs(
-            registration_result,
+            registration_outcome.result,
             ContactRegistrationResult.ACCESS_REQUEST_ALREADY_PENDING,
         )
         self.assertEqual(access_request_row["count"], 1)

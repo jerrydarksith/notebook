@@ -10,7 +10,7 @@ class UserRepository:
     def find_by_telegram_id(self, telegram_id: int) -> User | None:
         user_row = self._database.execute(
             """
-            SELECT id, telegram_id, role, status
+            SELECT id, telegram_id, username, first_name, last_name, role, status
             FROM users
             WHERE telegram_id = ?
             """,
@@ -23,6 +23,9 @@ class UserRepository:
         return User(
             id=user_row["id"],
             telegram_id=user_row["telegram_id"],
+            username=user_row["username"],
+            first_name=user_row["first_name"],
+            last_name=user_row["last_name"],
             role=UserRole(user_row["role"]),
             status=UserStatus(user_row["status"]),
         )
@@ -70,3 +73,26 @@ class UserRepository:
             ),
         )
         return cursor.lastrowid
+
+    def find_active_super_admins(self) -> list[User]:
+        user_rows = self._database.execute(
+            """
+            SELECT id, telegram_id, username, first_name, last_name, role, status
+            FROM users
+            WHERE role = ? AND status = ?
+            """,
+            (UserRole.SUPER_ADMIN.value, UserStatus.ACTIVE.value),
+        ).fetchall()
+
+        return [
+            User(
+                id=user_row["id"],
+                telegram_id=user_row["telegram_id"],
+                username=user_row["username"],
+                first_name=user_row["first_name"],
+                last_name=user_row["last_name"],
+                role=UserRole(user_row["role"]),
+                status=UserStatus(user_row["status"]),
+            )
+            for user_row in user_rows
+        ]

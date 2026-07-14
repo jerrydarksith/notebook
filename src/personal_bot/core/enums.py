@@ -23,3 +23,11 @@ class ContactRegistrationResult(str, Enum):
     ACCESS_REQUEST_CREATED = "access_request_created"
     ACCESS_REQUEST_ALREADY_PENDING = "access_request_already_pending"
     USER_ALREADY_REGISTERED = "user_already_registered"
+
+
+class AccessRequestReviewResult(str, Enum):
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    ALREADY_PROCESSED = "already_processed"
+    UNAUTHORIZED = "unauthorized"
+    NOT_FOUND = "not_found"

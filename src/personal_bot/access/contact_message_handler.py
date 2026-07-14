@@ -1,21 +1,28 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from personal_bot.access.access_request_notification_sender import (
+    AccessRequestNotificationSender,
+)
 from personal_bot.access.service import AccessService
 from personal_bot.core.enums import ContactRegistrationResult
 from personal_bot.telegram.menus.main_menu import get_main_menu_message
 
 
 class ContactMessageHandler:
-    def __init__(self, access_service: AccessService) -> None:
+    def __init__(
+        self,
+        access_service: AccessService,
+        access_request_notification_sender: AccessRequestNotificationSender,
+    ) -> None:
         self._access_service = access_service
+        self._access_request_notification_sender = access_request_notification_sender
 
     async def handle(
         self,
         update: Update,
         context: ContextTypes.DEFAULT_TYPE,
     ) -> None:
-        del context
         telegram_user = update.effective_user
         message = update.effective_message
 
@@ -33,7 +40,7 @@ class ContactMessageHandler:
             )
             return
 
-        registration_result = self._access_service.register_contact(
+        registration_outcome = self._access_service.register_contact(
             telegram_id=telegram_user.id,
             username=telegram_user.username,
             first_name=telegram_user.first_name,
@@ -41,24 +48,41 @@ class ContactMessageHandler:
             phone_number=contact.phone_number,
         )
 
-        if registration_result is ContactRegistrationResult.FIRST_SUPER_ADMIN_CREATED:
+        if (
+            registration_outcome.result
+            is ContactRegistrationResult.FIRST_SUPER_ADMIN_CREATED
+        ):
             await message.reply_text(
                 "Вас зареєстровано як Super Admin.\n\n"
                 f"{get_main_menu_message()}"
             )
             return
 
-        if registration_result is ContactRegistrationResult.USER_ALREADY_REGISTERED:
+        if (
+            registration_outcome.result
+            is ContactRegistrationResult.USER_ALREADY_REGISTERED
+        ):
             await message.reply_text(get_main_menu_message())
             return
 
-        if registration_result is ContactRegistrationResult.ACCESS_REQUEST_ALREADY_PENDING:
+        if (
+            registration_outcome.result
+            is ContactRegistrationResult.ACCESS_REQUEST_ALREADY_PENDING
+        ):
             await message.reply_text(
                 "Ваша заявка вже отримана.\n"
                 "Вона очікує підтвердження адміністратора."
             )
             return
 
+        if registration_outcome.access_request is None:
+            return
+
+        await self._access_request_notification_sender.notify_super_admins(
+            context.bot,
+            registration_outcome.super_admins,
+            registration_outcome.access_request,
+        )
         await message.reply_text(
             "Вашу заявку отримано.\n"
             "Вона очікує підтвердження адміністратора."
