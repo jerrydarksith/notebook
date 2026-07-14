@@ -20,7 +20,7 @@ class DatabaseSchemaTests(unittest.TestCase):
             finally:
                 database.close()
 
-        table_names = {table_row[0] for table_row in table_rows}
+        table_names = {table_row["name"] for table_row in table_rows}
         self.assertTrue(
             {"users", "access_requests", "user_settings", "categories"}
             .issubset(table_names)
@@ -29,4 +29,3 @@ class DatabaseSchemaTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
